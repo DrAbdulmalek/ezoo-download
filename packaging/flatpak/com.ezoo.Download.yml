@@ -4,15 +4,14 @@
 # Prebuilt bundle: attached automatically to every v*-linux* GitHub Release
 #                  (see .github/workflows/flatpak-linux.yml).
 #
-# The bundle is self-contained: it ships ffmpeg, aria2 and yt-dlp inside the
-# sandbox so the app works out of the box on any distro (the Linux port uses
-# the system helpers found on PATH — inside Flatpak that is /app/bin).
+# The bundle is self-contained: it ships a pinned Rust toolchain (1.99.1,
+# matching the container/CI builds), ffmpeg, aria2 and yt-dlp inside the
+# sandbox so the app works out of the box on any distro (the Linux port
+# uses the system helpers found on PATH — inside Flatpak that is /app/bin).
 app-id: com.ezoo.Download
 runtime: org.freedesktop.Platform
 runtime-version: "24.08"
 sdk: org.freedesktop.Sdk
-sdk-extensions:
-  - org.freedesktop.Sdk.Extension.rust-stable
 command: ezoo-download
 default-branch: stable
 separate-locales: false
@@ -32,13 +31,45 @@ finish-args:
   - --talk-name=org.freedesktop.Notifications
 
 build-options:
-  append-path: /usr/lib/sdk/rust-stable/bin
   build-args:
     - --share=network
   env:
     CARGO_HOME: /run/build/ezoo-download/cargo
 
 modules:
+  # ---- pinned Rust toolchain (Sdk extension's rustc 1.89 is too old for
+  #      Slint 1.18 which needs rustc >= 1.92) — removed from the final bundle
+  - name: rust-toolchain
+    buildsystem: simple
+    build-commands:
+      - |
+        case "$(uname -m)" in
+          x86_64) t=x86_64-unknown-linux-gnu ;;
+          aarch64) t=aarch64-unknown-linux-gnu ;;
+          *) echo "unsupported arch" >&2; exit 1 ;;
+        esac
+        ./install.sh --prefix=/app --components=rustc,cargo,rust-std-$t
+    cleanup:
+      - /bin/cargo
+      - /bin/cargo-clippy
+      - /bin/clippy-driver
+      - /bin/rustc
+      - /bin/rustdoc
+      - /bin/rustfmt
+      - /bin/rust-gdb
+      - /bin/rust-lldb
+      - /lib/rustlib
+      - /share/doc
+      - /share/man
+    sources:
+      - type: archive
+        only-arches: [x86_64]
+        url: https://static.rust-lang.org/dist/rust-1.99.1-x86_64-unknown-linux-gnu.tar.xz
+        sha256: 231fcae47ee950621374725b5fc3b5441d2fbda2955ac45dd7dc816d8876cfe7
+      - type: archive
+        only-arches: [aarch64]
+        url: https://static.rust-lang.org/dist/rust-1.99.1-aarch64-unknown-linux-gnu.tar.xz
+        sha256: a48fb1e853be56ce9b8e2751f5464dbd5e16440cd81e237920f3a5e7e806333e
   # ---- ffmpeg (muxing / conversion used by yt-dlp flows) -------------------
   - name: ffmpeg
     buildsystem: simple
