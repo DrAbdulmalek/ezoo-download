@@ -33,6 +33,13 @@
     </ul>
   </description>
   <launchable type="desktop-id">com.ezoo.Download.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/DrAbdulmalek/ezoo-download/main/packaging/screenshots/main-window.png</image>
+      <caption>Main window with the download toolbar, categories sidebar and queue list</caption>
+      <caption xml:lang="ar">النافذة الرئيسية مع شريط أدوات التحميل وشريط الفئات وقوائم الانتظار</caption>
+    </screenshot>
+  </screenshots>
   <provides>
     <binary>ezoo-download</binary>
   </provides>
