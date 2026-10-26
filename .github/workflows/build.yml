@@ -18,6 +18,9 @@ permissions:
 
 jobs:
   windows:
+    # Linux release tags (v*-linux*) are not Windows releases — skip them
+    # (the upstream tag/version guard below only matches plain vX.Y.Z tags).
+    if: ${{ !(startsWith(github.ref, 'refs/tags/') && contains(github.ref_name, '-linux')) }}
     runs-on: windows-latest
     steps:
       # actions pinned to exact commits (a moved tag can't change the build)
