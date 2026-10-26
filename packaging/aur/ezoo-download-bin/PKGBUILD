@@ -1,0 +1,37 @@
+# Maintainer: DrAbdulmalek <https://github.com/DrAbdulmalek>
+# This PKGBUILD is prepared for the AUR (aur.archlinux.org/package/ezoo-download-bin)
+# Publish steps (Arabic): see packaging/aur/README-AR.md
+
+pkgname=ezoo-download-bin
+_tag="v${pkgver}-linux"
+pkgver=1.0.7
+pkgrel=1
+pkgdesc="Ezoo Download — fast download manager with video support (prebuilt binaries, Rust + Slint, tray)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/DrAbdulmalek/ezoo-download"
+license=('MIT')
+depends=('fontconfig' 'libxkbcommon' 'wayland' 'libglvnd' 'openssl'
+         'yt-dlp' 'ffmpeg' 'aria2')
+provides=('ezoo-download')
+conflicts=('ezoo-download')
+source_x86_64=("$pkgname-${_tag}-x86_64.tar.gz::https://github.com/DrAbdulmalek/ezoo-download/releases/download/${_tag}/ezoo-download-${pkgver}-linux-x86_64.tar.gz"
+               "LICENSE::https://raw.githubusercontent.com/DrAbdulmalek/ezoo-download/main/LICENSE")
+sha256sums_x86_64=('30f9f952b25af32f3107606d3435cfdb8640ea562c8d38ec42e970876cb8867d'
+                   'df867bb818b76f9b4c09d128e965a7fbd4918de6052b10c3607c368e21189c86')
+source_aarch64=("$pkgname-${_tag}-aarch64.tar.gz::https://github.com/DrAbdulmalek/ezoo-download/releases/download/${_tag}/ezoo-download-${pkgver}-linux-aarch64.tar.gz"
+                "LICENSE::https://raw.githubusercontent.com/DrAbdulmalek/ezoo-download/main/LICENSE")
+sha256sums_aarch64=('a0bfcd84ffdb93617f442476fb51695d59eae38d4e3fa2920e59ff9b04b54734'
+                    'df867bb818b76f9b4c09d128e965a7fbd4918de6052b10c3607c368e21189c86')
+
+package() {
+  cd "$srcdir/$pkgname-${pkgver}-linux-${CARCH}"
+  install -Dm755 EzooDownload "$pkgdir/usr/bin/ezoo-download"
+  install -Dm644 ezoo-download.png \
+    "$pkgdir/usr/share/icons/hicolor/256x256/apps/ezoo-download.png"
+  install -Dm644 ezoo-download.desktop \
+    "$pkgdir/usr/share/applications/ezoo-download.desktop"
+  install -Dm644 README-LINUX.md \
+    "$pkgdir/usr/share/doc/ezoo-download/README-LINUX.md"
+  install -Dm644 "$srcdir/LICENSE" \
+    "$pkgdir/usr/share/licenses/ezoo-download-bin/LICENSE"
+}

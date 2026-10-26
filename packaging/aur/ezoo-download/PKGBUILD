@@ -1,0 +1,47 @@
+# Maintainer: DrAbdulmalek <https://github.com/DrAbdulmalek>
+# This PKGBUILD is prepared for the AUR (aur.archlinux.org/package/ezoo-download)
+# Publish steps (Arabic): see packaging/aur/README-AR.md
+#
+# Source build from the release tag (the -bin variant installs prebuilt
+# binaries instead and is usually preferred by users).
+
+_tag="v${pkgver}-linux"
+pkgname=ezoo-download
+pkgver=1.0.7
+pkgrel=1
+pkgdesc="Ezoo Download — fast download manager with video support (Rust + Slint, Linux port with tray)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/DrAbdulmalek/ezoo-download"
+license=('MIT')
+# GUI/runtime: slint (winit) needs libxkbcommon/wayland/X11 libs (loaded at
+# runtime), rfd file dialogs go through the XDG desktop portal (dbus), the
+# tray is pure D-Bus (StatusNotifierItem/ksni — no GTK needed), femtovg
+# needs GL. Helpers: the port uses the SYSTEM yt-dlp/ffmpeg/aria2 from PATH.
+depends=('fontconfig' 'libxkbcommon' 'wayland' 'libglvnd' 'openssl'
+         'yt-dlp' 'ffmpeg' 'aria2')
+makedepends=('rust' 'base-devel')
+source=("$pkgname-${_tag}.tar.gz::https://github.com/DrAbdulmalek/ezoo-download/archive/refs/tags/${_tag}.tar.gz"
+        "LICENSE::https://raw.githubusercontent.com/DrAbdulmalek/ezoo-download/main/LICENSE")
+sha256sums=('be0e6af95af15f9d94333b36d2d050f1285af05e527568116df4e9d76db9fa71'
+            'df867bb818b76f9b4c09d128e965a7fbd4918de6052b10c3607c368e21189c86')
+
+build() {
+  cd "$srcdir/$pkgname-${pkgver}-linux"
+  export CARGO_NET_OFFLINE=false
+  cargo build --release --locked
+}
+
+package() {
+  cd "$srcdir/$pkgname-${pkgver}-linux"
+  install -Dm755 target/release/EzooDownload "$pkgdir/usr/bin/ezoo-download"
+  # freedesktop icon theme path (menus/desktop) + legacy pixmaps fallback
+  install -Dm644 packaging/icon-256.png \
+    "$pkgdir/usr/share/icons/hicolor/256x256/apps/ezoo-download.png"
+  install -Dm644 crates/app/ui/icon.png "$pkgdir/usr/share/pixmaps/ezoo-download.png"
+  install -Dm644 packaging/ezoo-download.desktop \
+    "$pkgdir/usr/share/applications/ezoo-download.desktop"
+  install -Dm644 README-LINUX.md \
+    "$pkgdir/usr/share/doc/ezoo-download/README-LINUX.md"
+  install -Dm644 "$srcdir/LICENSE" \
+    "$pkgdir/usr/share/licenses/ezoo-download/LICENSE"
+}
