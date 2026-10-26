@@ -24,7 +24,7 @@ depends=('fontconfig' 'libxkbcommon' 'wayland' 'libglvnd' 'openssl'
          'yt-dlp' 'ffmpeg' 'aria2')
 makedepends=('rust' 'base-devel')
 source=("$pkgname-${_tag}.tar.gz::https://github.com/DrAbdulmalek/ezoo-download/archive/refs/tags/${_tag}.tar.gz")
-sha256sums=('ffd163e5edd5eda99b6d64fdbd706a2cb0a8dfdb4531fecd289bc1aea5396437')
+sha256sums=('be0e6af95af15f9d94333b36d2d050f1285af05e527568116df4e9d76db9fa71')
 
 # Git-source variant (always latest main):
 # source=("git+https://github.com/DrAbdulmalek/ezoo-download.git")
