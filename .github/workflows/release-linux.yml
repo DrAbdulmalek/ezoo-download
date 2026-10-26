@@ -2,7 +2,7 @@
 #
 # Manually:  Actions → Linux release build → Run workflow
 #            → builds both tarballs and uploads them as workflow artifacts.
-# On a tag:  pushing a tag like v1.0.6-linux* or v1.0.7-linux
+# On a tag:  pushing a tag like v1.0.7-linux
 #            also attaches the tarballs to that tag's GitHub Release.
 #
 # The aarch64 job runs on GitHub's native ARM runners (no QEMU emulation),

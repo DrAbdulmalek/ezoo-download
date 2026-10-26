@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.ezoo.Download</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Ezoo Download</name>
+  <summary>Fast download manager with video support</summary>
+  <summary xml:lang="ar">مدير تحميل سريع يدعم تنزيل الفيديو</summary>
+  <description>
+    <p>
+      Ezoo Download is a fast download manager written in Rust. It fetches files
+      from the links you choose and saves them to your device, with multi-threaded
+      segmented downloads (aria2), browser-style clipboard catching, scheduled and
+      throttled transfers, and a system tray presence with per-download progress.
+    </p>
+    <p xml:lang="ar">
+      إيزو داونلود مدير تحميل سريع مكتوب بلغة Rust، يجلب الملفات من الروابط التي
+      تحددها ويحفظها على جهازك، مع تحميل متعدد الخيوط (aria2)، والتقاط الروابط من
+      الحافظة، وجدولة التحميلات وتحديد سرعتها، وأيقونة في شريط النظام مع تقدم حي
+      لكل تنزيل مخفي.
+    </p>
+    <ul>
+      <li>Multi-segment accelerated downloads via aria2c</li>
+      <li>Video extraction with yt-dlp and muxing via ffmpeg (bundled)</li>
+      <li>Speed limiter, scheduler, and resumable transfers</li>
+      <li>System tray with live per-download progress (ksni/SNI)</li>
+    </ul>
+    <ul xml:lang="ar">
+      <li>تحميل متسارع متعدد الأجزاء عبر aria2c</li>
+      <li>استخراج الفيديو عبر yt-dlp ودمج المسارات عبر ffmpeg (مضمَّنة)</li>
+      <li>محدد سرعة ومجدول وتحميلات قابلة للاستكمال</li>
+      <li>أيقونة شريط نظام مع تقدم حي لكل تنزيل (ksni/SNI)</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">com.ezoo.Download.desktop</launchable>
+  <provides>
+    <binary>ezoo-download</binary>
+  </provides>
+  <developer_name translate="no">Ezoo Tech</developer_name>
+  <url type="homepage">https://github.com/DrAbdulmalek/ezoo-download</url>
+  <url type="bugtracker">https://github.com/DrAbdulmalek/ezoo-download/issues</url>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="1.0.7" date="2026-10-27">
+      <description>
+        <p>First Flatpak packaging: self-contained bundle with ffmpeg, aria2 and yt-dlp inside the sandbox; system tray on Linux (ksni/SNI); prebuilt x86_64 and aarch64 tarballs.</p>
+        <p xml:lang="ar">أول حزمة Flatpak: حزمة مكتملة بـ ffmpeg وaria2 وyt-dlp داخل الصندوق الرمل؛ أيقونة شريط النظام على لينكس (ksni/SNI)؛ حزم جاهزة للمعماريْن x86_64 وaarch64.</p>
+      </description>
+    </release>
+  </releases>
+</component>

@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Ezoo Download
+Name[ar]=إيزو داونلود
+GenericName=Download Manager
+GenericName[ar]=مدير تحميل
+Comment=Fast download manager with video support (yt-dlp)
+Comment[ar]=مدير تحميل سريع يدعم تنزيل الفيديو (yt-dlp)
+Exec=ezoo-download
+Icon=com.ezoo.Download
+Terminal=false
+Categories=Network;FileTransfer;
+Keywords=download;video;youtube;torrent;تحميل;تنزيل;
+X-Flatpak=com.ezoo.Download

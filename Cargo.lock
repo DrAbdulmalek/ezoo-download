@@ -5439,7 +5439,7 @@ dependencies = [
 
 [[package]]
 name = "swiftget"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "anyhow",
  "arboard",
@@ -5466,7 +5466,7 @@ dependencies = [
 
 [[package]]
 name = "swiftget-engine"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "aes",
  "anyhow",

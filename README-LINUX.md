@@ -29,11 +29,11 @@
 
 ### الطريقة 0: حزمة جاهزة من Releases (الأسهل — بدون بناء ولا مترجم)
 
-نزّل `ezoo-download-1.0.6-linux-x86_64.tar.gz` من صفحة [Releases](https://github.com/DrAbdulmalek/ezoo-download/releases) ثم:
+نزّل حزمة معماريك من صفحة [Releases](https://github.com/DrAbdulmalek/ezoo-download/releases) — `ezoo-download-*-linux-x86_64.tar.gz` للأجهزة العادية أو `ezoo-download-*-linux-aarch64.tar.gz` لأجهزة ARM (مثل Raspberry Pi 5 وApple Silicon بأدوات ARM وأجهزة سناب دراغون). الحزمتين تُبنيان تلقائيًا عند كل وسم إصدار عبر GitHub Actions، ثم:
 
 ```bash
-tar xzf ezoo-download-*-linux-x86_64.tar.gz
-cd ezoo-download-*-linux-x86_64
+tar xzf ezoo-download-*-linux-x86_64.tar.gz     # أو الملف aarch64 لمعماريك
+cd ezoo-download-*-linux-*/
 ./install.sh              # للتثبيت في ~/.local (بدون صلاحيات جذر)
 ./install.sh --uninstall  # للإزالة لاحقًا
 ```
@@ -43,6 +43,22 @@ cd ezoo-download-*-linux-x86_64
 ```bash
 sudo pacman -S --needed yt-dlp ffmpeg aria2
 ```
+
+### الطريقة 0.5: حزمة Flatpak (لأي توزيعة غير مانجارو/آرش)
+
+حزمة مكتملة العزلة تشتمل داخلها على الأدوات المساعدة كلها (ffmpeg و aria2 و yt-dlp) فلا تحتاج تثبيت أي شيء آخر، وتشتغل على أي توزيعة فيها Flatpak (Fedora و openSUSE و Debian و Ubuntu وغيرها):
+
+```bash
+# من صفحة Releases — حزمة جاهزة (اختر الملف الموافق لمعماريك):
+flatpak install --user ./ezoo-download-*-linux-x86_64.flatpak
+
+# أو البناء محليًا من المصدر عبر manifest:
+git clone https://github.com/DrAbdulmalek/ezoo-download.git
+cd ezoo-download
+flatpak-builder --user --force-clean --install --user build packaging/flatpak/com.ezoo.Download.yml
+```
+
+ثم شغّلها من قائمة التطبيقات (Ezoo Download) أو بـ `flatpak run com.ezoo.Download`. صلاحيات الصندوق الرملي تشمل الشبكة ومجلد المنزل وأيقونة شريط النظام؛ ولمراجعتها: `flatpak info com.ezoo.Download`.
 
 ### الطريقة 1: سكربت البناء (من المصدر)
 
