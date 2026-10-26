@@ -127,6 +127,12 @@ pub fn parse_signed(text: &str) -> anyhow::Result<Release> {
 
 /// The latest release, if it is newer than this program.
 pub async fn check(client: &reqwest::Client) -> anyhow::Result<Option<Release>> {
+    // Linux builds (e.g. Manjaro/Arch): the GitHub releases ship a Windows
+    // installer only, so the self-update flow stays Windows-only. On Linux,
+    // update by rebuilding or through the package manager (pacman/AUR).
+    if !cfg!(windows) {
+        return Ok(None);
+    }
     let text = client
         .get(version_url())
         .header(reqwest::header::USER_AGENT, crate::config::DEFAULT_USER_AGENT)
@@ -233,6 +239,11 @@ pub async fn download_with_progress(
 /// `visible`: the setup shows its progress (Help > Check for updates);
 /// otherwise nothing is shown (the automatic update).
 pub fn run_installer(setup: &Path, sha256: &str, visible: bool) -> anyhow::Result<()> {
+    // The downloaded artifact is a Windows Inno-Setup installer; on Linux
+    // there is nothing it can install.
+    if !cfg!(windows) {
+        anyhow::bail!("self-update is Windows-only; on Linux update via the package manager or rebuild");
+    }
     // checked again right before it runs: the file sat on the disk meanwhile
     if !file_sha256(setup)?.eq_ignore_ascii_case(sha256) {
         let _ = std::fs::remove_file(setup);

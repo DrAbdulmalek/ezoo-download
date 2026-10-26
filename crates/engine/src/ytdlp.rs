@@ -625,8 +625,13 @@ fn with_cookies<T>(
 /// age-limited YouTube videos, ...). Cookies the browser gave earlier for
 /// the same site are used when none come with this call.
 pub fn resolve(page_url: &str, cookies: Option<&[BrowserCookie]>) -> anyhow::Result<YtInfo> {
-    let tool = find_tool("yt-dlp")
-        .ok_or_else(|| anyhow!("yt-dlp.exe is missing. Ezoo Download gets it by itself in a minute (internet needed), then try again"))?;
+    let ytdlp_missing = if cfg!(windows) {
+        "yt-dlp.exe is missing. Ezoo Download gets it by itself in a minute (internet needed), then try again"
+    } else {
+        // Linux (Manjaro/Arch): use the system package instead of downloading
+        "yt-dlp is missing. On Manjaro/Arch install it from the system: sudo pacman -S yt-dlp"
+    };
+    let tool = find_tool("yt-dlp").ok_or_else(|| anyhow!("{ytdlp_missing}"))?;
     let cookies = cookies.filter(|c| !c.is_empty());
     let json = with_cookies(page_url, cookies, |file| run_ytdlp(&tool, page_url, file))?;
     let info = build_options(&json);
@@ -663,7 +668,13 @@ pub struct PlaylistInfo {
 /// The videos of a playlist (or channel page), without looking at each
 /// video yet (`--flat-playlist`, fast). Blocking.
 pub fn playlist(url: &str) -> anyhow::Result<PlaylistInfo> {
-    let tool = find_tool("yt-dlp").ok_or_else(|| anyhow!("yt-dlp.exe was not found next to EzooDownload.exe"))?;
+    let tool = find_tool("yt-dlp").ok_or_else(|| {
+        if cfg!(windows) {
+            anyhow!("yt-dlp.exe was not found next to EzooDownload.exe")
+        } else {
+            anyhow!("yt-dlp is missing. On Manjaro/Arch install it from the system: sudo pacman -S yt-dlp")
+        }
+    })?;
     let json = with_cookies(url, None, |file| {
         let mut cmd = Command::new(&tool);
         cmd.args(playlist_args(url, file));
@@ -743,7 +754,17 @@ pub fn pick_option(options: &[YtOption], wanted: &str) -> Option<YtOption> {
 
 /// Update yt-dlp right now ("Help > Update video downloader"). Blocking.
 pub fn update_now() -> anyhow::Result<String> {
-    let tool = find_tool("yt-dlp").ok_or_else(|| anyhow!("yt-dlp.exe was not found next to EzooDownload.exe"))?;
+    // yt-dlp refuses "-U" self-update when it came from a package manager
+    if !cfg!(windows) {
+        bail!("On Linux yt-dlp is updated by the package manager: sudo pacman -Syu yt-dlp");
+    }
+    let tool = find_tool("yt-dlp").ok_or_else(|| {
+        if cfg!(windows) {
+            anyhow!("yt-dlp.exe was not found next to EzooDownload.exe")
+        } else {
+            anyhow!("yt-dlp is missing. On Manjaro/Arch install it from the system: sudo pacman -S yt-dlp")
+        }
+    })?;
     let mut cmd = Command::new(&tool);
     cmd.args(["--ignore-config", "-U"]);
     hide_window(&mut cmd);

@@ -41,12 +41,49 @@ mod imp {
 
 #[cfg(not(windows))]
 mod imp {
+    //! "Start at login" on Linux/Manjaro: an XDG autostart .desktop entry
+    //! (~/.config/autostart), honored by KDE Plasma, GNOME, XFCE and others.
+    use std::fs;
+    use std::path::PathBuf;
+
+    const DESKTOP_NAME: &str = "ezoo-download.desktop";
+
+    fn autostart_file() -> Option<PathBuf> {
+        let config_dir = std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))?;
+        Some(config_dir.join("autostart").join(DESKTOP_NAME))
+    }
+
     pub fn is_enabled() -> bool {
-        false
+        autostart_file().map(|p| p.exists()).unwrap_or(false)
     }
-    pub fn set(_enabled: bool) -> bool {
-        false
+
+    pub fn set(enabled: bool) -> bool {
+        let Some(path) = autostart_file() else { return false };
+        if !enabled {
+            // already disabled counts as success
+            return fs::remove_file(&path).is_ok() || !path.exists();
+        }
+        let Ok(exe) = std::env::current_exe() else { return false };
+        let content = format!(
+            "[Desktop Entry]\n\
+             Type=Application\n\
+             Name=Ezoo Download\n\
+             Comment=Start Ezoo Download in the background at login\n\
+             Exec=\"{}\" --background\n\
+             Terminal=false\n\
+             X-GNOME-Autostart-enabled=true\n",
+            exe.display()
+        );
+        let Some(parent) = path.parent() else { return false };
+        if fs::create_dir_all(parent).is_err() {
+            return false;
+        }
+        fs::write(&path, content).is_ok()
     }
+
+    /// Installed with the setup program (a Windows idea); never on Linux.
     pub fn installed_by_setup() -> bool {
         false
     }

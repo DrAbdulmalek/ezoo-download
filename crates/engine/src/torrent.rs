@@ -278,9 +278,13 @@ impl Aria2 {
                 return Ok((d.port, d.secret.clone()));
             }
         }
-        let tool = crate::mux::find_tool("aria2c").ok_or_else(|| {
-            anyhow!("aria2c.exe is missing. Ezoo Download gets it by itself in a minute (internet needed), then try again")
-        })?;
+        let aria2_missing = if cfg!(windows) {
+            "aria2c.exe is missing. Ezoo Download gets it by itself in a minute (internet needed), then try again"
+        } else {
+            // Linux (Manjaro/Arch): use the system package instead of downloading
+            "aria2c is missing. On Manjaro/Arch install it from the system: sudo pacman -S aria2"
+        };
+        let tool = crate::mux::find_tool("aria2c").ok_or_else(|| anyhow!("{aria2_missing}"))?;
         let port = std::net::TcpListener::bind("127.0.0.1:0")?.local_addr()?.port();
         let secret = random_secret();
         let _ = std::fs::create_dir_all(&self.data_dir);

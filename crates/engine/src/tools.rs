@@ -346,6 +346,13 @@ fn find_file(dir: &Path, name: &str) -> Option<PathBuf> {
 /// Check both tools now (only does work when a day has passed or one is
 /// missing). Never shows anything; errors just mean "try again later".
 pub async fn update_all(client: reqwest::Client, data_dir: PathBuf) {
+    // Linux (Manjaro/Arch): the helpers come from system packages
+    // (pacman: yt-dlp, ffmpeg, aria2) and find_tool() already picks them
+    // from PATH — so the Windows-binary auto-download is skipped there.
+    if !cfg!(windows) {
+        let _ = (&client, &data_dir);
+        return;
+    }
     yt_dlp(&client, &data_dir).await;
     let _ = ffmpeg(&client, &data_dir).await;
     let _ = aria2(&client).await;
@@ -359,6 +366,12 @@ pub async fn update_all(client: reqwest::Client, data_dir: PathBuf) {
 
 /// Run `update_all` now and then every few hours while the app is open.
 pub fn spawn_updater(rt: &tokio::runtime::Handle, client: reqwest::Client, data_dir: PathBuf) {
+    // Windows-only background updater: on Linux the helpers are system
+    // packages managed by pacman, so there is nothing to auto-update.
+    if !cfg!(windows) {
+        let _ = (rt, client, data_dir);
+        return;
+    }
     rt.spawn(async move {
         // let the app start first
         tokio::time::sleep(Duration::from_secs(20)).await;

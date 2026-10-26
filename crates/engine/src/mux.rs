@@ -56,9 +56,15 @@ pub fn format_for(file_name: &str) -> &'static str {
 
 pub fn merge(video: &Path, audio: &Path, output: &Path, final_name: &str) -> anyhow::Result<()> {
     let Some(ffmpeg) = find_ffmpeg() else {
+        if cfg!(windows) {
+            bail!(
+                "ffmpeg.exe is missing. Ezoo Download gets it by itself in a few minutes \
+                 (internet needed) - then press Resume to join video and audio"
+            );
+        }
+        // Linux (Manjaro/Arch): use the system package instead of downloading
         bail!(
-            "ffmpeg.exe is missing. Ezoo Download gets it by itself in a few minutes \
-             (internet needed) - then press Resume to join video and audio"
+            "ffmpeg is missing. On Manjaro/Arch install it from the system: sudo pacman -S ffmpeg"
         );
     };
     let format = format_for(final_name);
@@ -89,7 +95,12 @@ pub fn merge(video: &Path, audio: &Path, output: &Path, final_name: &str) -> any
 /// Matroska (.mkv) file: it takes every kind of picture and sound.
 pub fn preview_snapshot(video: &Path, video_ready: u64, audio: Option<(&Path, u64)>, output: &Path) -> anyhow::Result<()> {
     let Some(ffmpeg) = find_ffmpeg() else {
-        bail!("ffmpeg.exe is missing. Ezoo Download gets it by itself in a few minutes (internet needed)");
+        if cfg!(windows) {
+            bail!("ffmpeg.exe is missing. Ezoo Download gets it by itself in a few minutes (internet needed)");
+        }
+        bail!(
+            "ffmpeg is missing. On Manjaro/Arch install it from the system: sudo pacman -S ffmpeg"
+        );
     };
     // only the part with no gap ("subfile": ffmpeg reads just those bytes)
     let part = |p: &Path, n: u64| {
