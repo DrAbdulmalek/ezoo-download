@@ -58,6 +58,7 @@ modules:
       - /bin/rustfmt
       - /bin/rust-gdb
       - /bin/rust-lldb
+      - /lib/libLLVM*
       - /lib/rustlib
       - /share/doc
       - /share/man

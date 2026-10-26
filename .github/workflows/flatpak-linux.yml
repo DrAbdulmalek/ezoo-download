@@ -47,7 +47,10 @@ jobs:
 
       - name: Build (flatpak-builder)
         run: |
-          flatpak-builder --user --force-clean \
+          # --no-strip: flatpak-builder's eu-strip corrupts rustc's bundled
+          # libLLVM (rust module); the big pieces are already lean (ffmpeg
+          # --disable-debug, cargo strip=true) and cleanup drops the toolchain.
+          flatpak-builder --user --force-clean --no-strip \
             --install-deps-from=flathub \
             --state-dir=.flatpak-builder --repo=repo \
             build packaging/flatpak/com.ezoo.Download.yml
