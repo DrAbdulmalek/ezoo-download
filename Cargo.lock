@@ -5444,6 +5444,7 @@ dependencies = [
  "anyhow",
  "arboard",
  "chrono",
+ "ksni",
  "open",
  "raw-window-handle",
  "rfd",

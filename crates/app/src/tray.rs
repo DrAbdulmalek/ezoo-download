@@ -1,7 +1,14 @@
-//! Icon next to the clock (Windows): the app keeps running there when its
-//! window is closed, like other download managers.
+//! Icon next to the clock: the app keeps running there when its window is
+//! closed, like other download managers.
+//!
+//! Windows uses the `tray-icon` crate (Win32 shell notifications); Linux
+//! speaks the freedesktop StatusNotifierItem protocol directly through
+//! `ksni` — pure D-Bus, so no GTK and no extra system libraries are needed.
+//! It works out of the box on KDE Plasma, XFCE, Cinnamon, MATE and LXQt
+//! (the desktops of Manjaro and most other distributions).
 
 #[cfg_attr(not(windows), allow(dead_code))]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TrayAction {
     Show,
     AddUrl,
@@ -259,26 +266,231 @@ mod imp {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(unix)]
 mod imp {
-    use super::{DownloadAction, TrayAction};
-    pub fn show_download(_id: u64, _tip: &str, _progress: Option<f32>, _labels: (&str, &str)) -> bool {
-        false
+    use super::{step_of, short_tip, DownloadAction, TrayAction};
+    use ksni::blocking::{Handle, TrayMethods};
+    use ksni::menu::{CheckmarkItem, StandardItem};
+    use ksni::{Icon, MenuItem, ToolTip};
+    use std::collections::HashMap;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex, OnceLock};
+
+    /// Our RGBA picture as an ARGB32 `ksni::Icon` (the byte order the
+    /// StatusNotifierItem protocol wants).
+    fn ksni_icon(progress: Option<f32>) -> Icon {
+        let mut data = super::download_icon(progress);
+        for px in data.chunks_exact_mut(4) {
+            px.rotate_right(1); // RGBA -> ARGB
+        }
+        Icon { width: 32, height: 32, data }
     }
-    pub fn update_download(_id: u64, _tip: &str, _progress: Option<f32>) {}
-    pub fn remove_download(_id: u64) {}
-    pub fn take_download_actions() -> Vec<(u64, DownloadAction)> {
-        Vec::new()
+
+    /// The tip starts with "67%  file.zip" (or "12 MB  file.zip"): the bold
+    /// line of the hint is nicer as the plain file name.
+    fn short_name(tip: &str) -> String {
+        let first = tip.lines().next().unwrap_or("");
+        match first.split_once("  ") {
+            Some((_, name)) if !name.trim().is_empty() => name.trim().to_string(),
+            _ => "Ezoo Download".to_string(),
+        }
     }
-    pub struct Tray;
+
+    fn pending_main() -> &'static Mutex<Vec<TrayAction>> {
+        static P: OnceLock<Mutex<Vec<TrayAction>>> = OnceLock::new();
+        P.get_or_init(|| Mutex::new(Vec::new()))
+    }
+
+    fn pending_dl() -> &'static Mutex<Vec<(u64, DownloadAction)>> {
+        static P: OnceLock<Mutex<Vec<(u64, DownloadAction)>>> = OnceLock::new();
+        P.get_or_init(|| Mutex::new(Vec::new()))
+    }
+
+    /// The tray object itself. Its fields are read from the D-Bus service
+    /// thread (menu, icon, hint), the clicks come back through the queue.
+    struct MainTray {
+        limiter: Arc<AtomicBool>,
+    }
+
+    impl ksni::Tray for MainTray {
+        fn id(&self) -> String {
+            "ezoo-download".into()
+        }
+        fn title(&self) -> String {
+            "Ezoo Download".into()
+        }
+        fn icon_name(&self) -> String {
+            "ezoo-download".into() // used when the theme has our icon
+        }
+        fn icon_pixmap(&self) -> Vec<Icon> {
+            vec![ksni_icon(None)]
+        }
+        fn tool_tip(&self) -> ToolTip {
+            ToolTip { title: "Ezoo Download".into(), ..Default::default() }
+        }
+        /// A plain click on the icon: the window comes back.
+        fn activate(&mut self, _x: i32, _y: i32) {
+            pending_main().lock().unwrap_or_else(|p| p.into_inner()).push(TrayAction::Show);
+        }
+        fn menu(&self) -> Vec<MenuItem<Self>> {
+            let push = |a: TrayAction| {
+                Box::new(move |_: &mut Self| {
+                    pending_main().lock().unwrap_or_else(|p| p.into_inner()).push(a);
+                }) as Box<dyn Fn(&mut Self) + Send>
+            };
+            vec![
+                StandardItem { label: "Restore Ezoo Download".into(), activate: push(TrayAction::Show), ..Default::default() }.into(),
+                MenuItem::Separator,
+                StandardItem { label: "Add new download…".into(), activate: push(TrayAction::AddUrl), ..Default::default() }.into(),
+                StandardItem { label: "Resume all downloads".into(), activate: push(TrayAction::ResumeAll), ..Default::default() }.into(),
+                StandardItem { label: "Stop all downloads".into(), activate: push(TrayAction::StopAll), ..Default::default() }.into(),
+                MenuItem::Separator,
+                CheckmarkItem {
+                    label: "Speed Limiter".into(),
+                    checked: self.limiter.load(Ordering::Relaxed),
+                    activate: push(TrayAction::ToggleLimiter),
+                    ..Default::default()
+                }
+                .into(),
+                StandardItem { label: "Scheduler…".into(), activate: push(TrayAction::Scheduler), ..Default::default() }.into(),
+                StandardItem { label: "Options…".into(), activate: push(TrayAction::Options), ..Default::default() }.into(),
+                MenuItem::Separator,
+                StandardItem { label: "About".into(), activate: push(TrayAction::About), ..Default::default() }.into(),
+                StandardItem { label: "Exit".into(), activate: push(TrayAction::Exit), ..Default::default() }.into(),
+            ]
+        }
+    }
+
+    /// One small icon for a download whose window was hidden.
+    struct DlTray {
+        id: u64,
+        step: Option<u32>,
+        name: String,
+        tip: String,
+        show_label: String,
+        stop_label: String,
+    }
+
+    impl ksni::Tray for DlTray {
+        fn id(&self) -> String {
+            format!("ezoo-download-{}", self.id)
+        }
+        fn title(&self) -> String {
+            self.name.clone()
+        }
+        fn icon_pixmap(&self) -> Vec<Icon> {
+            vec![ksni_icon(self.step.map(|s| s as f32 / 24.0))]
+        }
+        fn tool_tip(&self) -> ToolTip {
+            ToolTip {
+                title: self.name.clone(),
+                description: self.tip.clone(),
+                ..Default::default()
+            }
+        }
+        fn activate(&mut self, _x: i32, _y: i32) {
+            let hit = (self.id, DownloadAction::Show);
+            pending_dl().lock().unwrap_or_else(|p| p.into_inner()).push(hit);
+        }
+        fn menu(&self) -> Vec<MenuItem<Self>> {
+            let id = self.id;
+            let push = |a: DownloadAction| {
+                Box::new(move |_: &mut Self| {
+                    pending_dl().lock().unwrap_or_else(|p| p.into_inner()).push((id, a));
+                }) as Box<dyn Fn(&mut Self) + Send>
+            };
+            vec![
+                StandardItem { label: self.show_label.clone(), activate: push(DownloadAction::Show), ..Default::default() }.into(),
+                StandardItem { label: self.stop_label.clone(), activate: push(DownloadAction::Pause), ..Default::default() }.into(),
+            ]
+        }
+    }
+
+    struct Mini {
+        handle: Handle<DlTray>,
+        step: Option<u32>,
+        tip: String,
+    }
+
+    fn minis() -> &'static Mutex<HashMap<u64, Mini>> {
+        static M: OnceLock<Mutex<HashMap<u64, Mini>>> = OnceLock::new();
+        M.get_or_init(|| Mutex::new(HashMap::new()))
+    }
+
+    pub struct Tray {
+        handle: Handle<MainTray>,
+        limiter: Arc<AtomicBool>,
+    }
+
     impl Tray {
+        /// `None`: no working tray on this desktop (no D-Bus session, or no
+        /// StatusNotifier host — bare GNOME for example). The app then simply
+        /// quits when its window is closed, like before.
         pub fn new() -> Option<Tray> {
-            None
+            let limiter = Arc::new(AtomicBool::new(false));
+            let handle = MainTray { limiter: limiter.clone() }.spawn().ok()?;
+            Some(Tray { handle, limiter })
         }
+
+        /// Clicks since the last call (those on hidden downloads go to
+        /// [`take_download_actions`]).
         pub fn poll(&self) -> Vec<TrayAction> {
-            Vec::new()
+            std::mem::take(&mut *pending_main().lock().unwrap_or_else(|p| p.into_inner()))
         }
-        pub fn set_limiter(&self, _on: bool) {}
+
+        /// Keep the check mark of "Speed Limiter" in step with the app.
+        pub fn set_limiter(&self, on: bool) {
+            if self.limiter.swap(on, Ordering::Relaxed) != on {
+                self.handle.update(|_| {}); // re-render the menu
+            }
+        }
+    }
+
+    /// A small icon next to the clock for a download whose window was hidden.
+    pub fn show_download(id: u64, tip: &str, progress: Option<f32>, labels: (&str, &str)) -> bool {
+        if minis().lock().unwrap_or_else(|p| p.into_inner()).contains_key(&id) {
+            return true;
+        }
+        let tray = DlTray {
+            id,
+            step: progress.map(step_of),
+            name: short_name(tip),
+            tip: short_tip(tip),
+            show_label: labels.0.to_string(),
+            stop_label: labels.1.to_string(),
+        };
+        let Ok(handle) = tray.spawn() else { return false };
+        minis().lock().unwrap_or_else(|p| p.into_inner()).insert(
+            id,
+            Mini { handle, step: progress.map(step_of), tip: short_tip(tip) },
+        );
+        true
+    }
+
+    /// New numbers for its icon and its hint.
+    pub fn update_download(id: u64, tip: &str, progress: Option<f32>) {
+        let step = progress.map(step_of);
+        let tip = short_tip(tip);
+        let mut ms = minis().lock().unwrap_or_else(|p| p.into_inner());
+        if let Some(m) = ms.get_mut(&id) {
+            if m.step != step || m.tip != tip {
+                m.step = step;
+                m.tip = tip;
+                m.handle.update(|_| {}); // re-render icon and hint
+            }
+        }
+    }
+
+    /// Its window is back (or it is done): the icon goes.
+    pub fn remove_download(id: u64) {
+        if let Some(m) = minis().lock().unwrap_or_else(|p| p.into_inner()).remove(&id) {
+            m.handle.shutdown(); // no wait: the service thread cleans up
+        }
+    }
+
+    /// Clicks on the icons of hidden downloads since the last call.
+    pub fn take_download_actions() -> Vec<(u64, DownloadAction)> {
+        std::mem::take(&mut *pending_dl().lock().unwrap_or_else(|p| p.into_inner()))
     }
 }
 

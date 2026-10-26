@@ -46,3 +46,9 @@ windows-sys = { version = "0.59", features = [
     "Win32_System_Com",
     "Win32_System_Ole",
 ] }
+
+# Tray on Linux: freedesktop StatusNotifierItem over D-Bus (ksni) — pure
+# Rust, no GTK/libappindicator needed; works on KDE Plasma, XFCE, Cinnamon,
+# MATE, LXQt (GNOME needs the AppIndicator extension).
+[target.'cfg(unix)'.dependencies]
+ksni = { version = "0.3", default-features = false, features = ["blocking"] }

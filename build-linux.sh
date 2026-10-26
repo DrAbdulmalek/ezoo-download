@@ -5,6 +5,7 @@
 #   ./build-linux.sh                  # build the release binary only
 #   ./build-linux.sh --install-deps   # install build/runtime deps via pacman
 #   ./build-linux.sh --install        # build + install into ~/.local
+#   ./build-linux.sh --package        # build + assemble the distributable tar.gz
 #
 # The Linux port uses the SYSTEM helpers (yt-dlp, ffmpeg, aria2c) found on
 # PATH instead of downloading Windows builds — see README-LINUX.md.
@@ -53,10 +54,28 @@ install_local() {
   info "launcher entry: 'Ezoo Download' (menu) — make sure $dest/bin is in PATH"
 }
 
+package_tarball() {
+  local ver="$(sed -n 's/^version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1)"
+  local dir="ezoo-download-${ver}-linux-x86_64"
+  local root="$(pwd)"
+  [ -x target/release/EzooDownload ] || die "binary not built yet — run a build first"
+  rm -rf "/tmp/$dir" && mkdir -p "/tmp/$dir"
+  cp target/release/EzooDownload "/tmp/$dir/"
+  cp packaging/install.sh "/tmp/$dir/" && chmod +x "/tmp/$dir/install.sh"
+  cp packaging/ezoo-download.desktop "/tmp/$dir/"
+  cp packaging/icon-256.png "/tmp/$dir/ezoo-download.png"
+  cp README-LINUX.md THIRD-PARTY-NOTICES.txt "/tmp/$dir/" 2>/dev/null || true
+  ( cd /tmp && tar czf "$root/$dir.tar.gz" "$dir" )
+  rm -rf "/tmp/$dir"
+  info "package ready: $dir.tar.gz"
+  sha256sum "$dir.tar.gz" | sed 's/^/  sha256: /'
+}
+
 case "${1:-build}" in
   "") build ;;
   build) build ;;
   --install-deps) install_deps ;;
   --install) install_deps; build; install_local ;;
-  *) die "unknown option: $1  (use: build | --install-deps | --install)" ;;
+  --package) build; package_tarball ;;
+  *) die "unknown option: $1  (use: build | --install-deps | --install | --package)" ;;
 esac
