@@ -31,6 +31,13 @@ finish-args:
   - --talk-name=org.freedesktop.Notifications
 
 build-options:
+  # Stripping must stay OFF: flatpak-builder's eu-strip pass corrupts
+  # rustc's bundled libLLVM ("object file has no loadable sections").
+  # The heavy pieces are already lean: ffmpeg --disable-debug, cargo
+  # strip=true in the app profile, and cleanup drops the toolchain.
+  strip: false
+  no-debuginfo: true
+  no-debuginfo-compression: true
   build-args:
     - --share=network
   env:
