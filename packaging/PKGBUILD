@@ -1,27 +1,30 @@
 # Maintainer: DrAbdulmalek <https://github.com/DrAbdulmalek>
 # Contributor: Ezoo Download Linux port
 #
-# Build on Manjaro/Arch from this repo folder:
+# Build on Manjaro/Arch from a release tag (default):
 #   cd packaging && makepkg -si
 #
-# Or build the git version directly:
-#   updpkgsums && makepkg -si   (after switching source to the -git form below)
+# Or build the latest main directly:
+#   makepkg -si --noconfirm -o   # no; simplest git form:
+#   switch to the -git source form below and run: makepkg -si
 
+_tag="v1.0.6-linux"
 pkgname=ezoo-download
 pkgver=1.0.6
-pkgrel=1
-pkgdesc="Ezoo Download — fast download manager with video support (Rust + Slint, Linux port)"
-arch=('x86_64')
+pkgrel=2
+pkgdesc="Ezoo Download — fast download manager with video support (Rust + Slint, Linux port with tray)"
+arch=('x86_64' 'aarch64')
 url="https://github.com/DrAbdulmalek/ezoo-download"
 license=('MIT')
-# GUI/runtime: slint (winit) needs libxkbcommon/wayland/X11 libs, rfd file
-# dialogs need gtk3, reqwest native-tls needs openssl, femtovg needs GL.
-# Helpers: the port uses the SYSTEM yt-dlp/ffmpeg/aria2c from PATH.
-depends=('gtk3' 'fontconfig' 'libxkbcommon' 'wayland' 'libglvnd' 'openssl'
+# GUI/runtime: slint (winit) needs libxkbcommon/wayland/X11 libs (loaded at
+# runtime), rfd file dialogs go through the XDG desktop portal (dbus), the
+# tray is pure D-Bus (StatusNotifierItem/ksni — no GTK needed), femtovg
+# needs GL. Helpers: the port uses the SYSTEM yt-dlp/ffmpeg/aria2 from PATH.
+depends=('fontconfig' 'libxkbcommon' 'wayland' 'libglvnd' 'openssl'
          'yt-dlp' 'ffmpeg' 'aria2')
 makedepends=('rust' 'base-devel')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/DrAbdulmalek/ezoo-download/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')  # TODO: replace with the real sha256 of the v$pkgver tag
+source=("$pkgname-${_tag}.tar.gz::https://github.com/DrAbdulmalek/ezoo-download/archive/refs/tags/${_tag}.tar.gz")
+sha256sums=('ffd163e5edd5eda99b6d64fdbd706a2cb0a8dfdb4531fecd289bc1aea5396437')
 
 # Git-source variant (always latest main):
 # source=("git+https://github.com/DrAbdulmalek/ezoo-download.git")
@@ -32,14 +35,17 @@ sha256sums=('SKIP')  # TODO: replace with the real sha256 of the v$pkgver tag
 # }
 
 build() {
-  cd "$srcdir/$pkgname-$pkgver"
+  cd "$srcdir/$pkgname-1.0.6-linux"
   export CARGO_NET_OFFLINE=false
   cargo build --release --locked
 }
 
 package() {
-  cd "$srcdir/$pkgname-$pkgver"
+  cd "$srcdir/$pkgname-1.0.6-linux"
   install -Dm755 target/release/EzooDownload "$pkgdir/usr/bin/ezoo-download"
+  # freedesktop icon theme path (menus/desktop) + legacy pixmaps fallback
+  install -Dm644 packaging/icon-256.png \
+    "$pkgdir/usr/share/icons/hicolor/256x256/apps/ezoo-download.png"
   install -Dm644 crates/app/ui/icon.png "$pkgdir/usr/share/pixmaps/ezoo-download.png"
   install -Dm644 packaging/ezoo-download.desktop \
     "$pkgdir/usr/share/applications/ezoo-download.desktop"

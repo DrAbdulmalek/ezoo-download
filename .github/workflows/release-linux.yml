@@ -1,0 +1,86 @@
+# Ezoo Download — Linux release builder (x86_64 + aarch64)
+#
+# Manually:  Actions → Linux release build → Run workflow
+#            → builds both tarballs and uploads them as workflow artifacts.
+# On a tag:  pushing a tag like v1.0.6-linux* or v1.0.7-linux
+#            also attaches the tarballs to that tag's GitHub Release.
+#
+# The aarch64 job runs on GitHub's native ARM runners (no QEMU emulation),
+# so both binaries are real native builds of the same commit.
+
+name: Linux release build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*-linux*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon-dev libfontconfig1-dev libssl-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.arch }}
+
+      - name: Build (release)
+        run: cargo build --release --locked -p swiftget
+
+      - name: Package tarball
+        run: bash build-linux.sh --package
+
+      - name: Rename with arch
+        run: |
+          for f in ezoo-download-*-linux-x86_64.tar.gz; do
+            new="${f/x86_64/${{ matrix.arch }}}"
+            [ "$f" != "$new" ] && mv "$f" "$new"
+          done
+          ls -lh ezoo-download-*-linux-*.tar.gz
+
+      - name: Checksum
+        run: sha256sum ezoo-download-*-linux-${{ matrix.arch }}.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ezoo-download-linux-${{ matrix.arch }}
+          path: ezoo-download-*-linux-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: dist
+
+      - name: Attach to the tag's release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ezoo-download-*.tar.gz
+          fail_on_unmatched_files: true
